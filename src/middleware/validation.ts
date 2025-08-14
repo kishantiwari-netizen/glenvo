@@ -1,53 +1,26 @@
 import { Request, Response, NextFunction } from "express";
-import { validate, ValidationError } from "class-validator";
-import { plainToClass } from "class-transformer";
+import { validationResult } from "express-validator";
 
-export const validateRequest = (
-  dtoClass: any,
-  source: "body" | "query" | "params" = "body"
-) => {
-  return async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      // Transform plain object to class instance
-      const dtoObject = plainToClass(dtoClass, req[source]);
+export const handleValidationErrors = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  const errors = validationResult(req);
 
-      // Validate the object
-      const errors: ValidationError[] = await validate(dtoObject, {
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        forbidUnknownValues: true,
-      });
+  if (!errors.isEmpty()) {
+    const errorMessages = errors.array().map((error) => ({
+      field: error.type === "field" ? error.path : "unknown",
+      message: error.msg,
+      value: error.type === "field" ? error.value : undefined,
+    }));
 
-      if (errors.length > 0) {
-        const errorMessages = errors.map((error) => {
-          const constraints = error.constraints;
-          return constraints
-            ? Object.values(constraints)[0]
-            : "Validation error";
-        });
+    res.status(400).json({
+      message: "Validation failed",
+      errors: errorMessages,
+    });
+    return;
+  }
 
-        res.status(400).json({
-          success: false,
-          message: "Validation error",
-          errors: errorMessages,
-        });
-        return;
-      }
-
-      // Replace the request data with validated data
-      req[source] = dtoObject;
-      next();
-    } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: "Validation error",
-        errors: ["Invalid request data"],
-      });
-      return;
-    }
-  };
+  next();
 };

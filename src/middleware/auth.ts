@@ -1,15 +1,25 @@
 import { Request, Response, NextFunction } from "express";
-import { JWTService } from "../utils/jwt";
-import { User, Role } from "../../db/models";
-import {
-  UserWithRole,
-  AuthenticatedRequest as AuthRequest,
-} from "../../db/types";
+import jwt from "jsonwebtoken";
+import { User, Role, Permission } from "../models";
 
-interface AuthenticatedRequest extends Request, AuthRequest {}
+interface JwtPayload {
+  user_id: number;
+  email: string;
+  roles: string[];
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+      userRoles?: string[];
+      userPermissions?: string[];
+    }
+  }
+}
 
 export const authenticateToken = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -18,74 +28,72 @@ export const authenticateToken = async (
     const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
     if (!token) {
-      res.status(401).json({
-        success: false,
-        message: "Access token is required",
-      });
+      res.status(401).json({ message: "Access token required" });
       return;
     }
 
-    const decoded = JWTService.verifyToken(token);
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your_jwt_secret_key_here"
+    ) as JwtPayload;
 
-    // Check if user still exists and is active
-    const user = (await User.findByPk(decoded.userId, {
+    // Get user with role and permissions
+    const user = await User.findByPk(decoded.user_id, {
       include: [
         {
           model: Role,
           as: "role",
-          where: { isActive: true },
+          include: [
+            {
+              model: Permission,
+              as: "permissions",
+              required: false,
+            },
+          ],
+          required: false,
         },
       ],
-    })) as UserWithRole | null;
+    });
 
-    if (!user || !user.isActive || !user.role) {
-      res.status(401).json({
-        success: false,
-        message: "User not found, inactive, or has no valid role",
-      });
+    if (!user || !user.is_active) {
+      res.status(401).json({ message: "Invalid token or user not found" });
       return;
     }
 
-    // Get user permissions
-    const userPermissions = await (
-      await import("../utils/roleService")
-    ).RoleService.getUserPermissions(decoded.userId);
+    // Extract roles and permissions (filter for active ones)
+    const userRoles = user.role?.is_active ? [user.role.name] : [];
+    const userPermissions =
+      user.role?.is_active
+        ? user.role.permissions?.filter((permission: any) => permission.is_active)?.map((permission: any) => permission.name) || []
+        : [];
 
-    req.user = {
-      userId: decoded.userId,
-      email: decoded.email,
-      roleId: decoded.roleId,
-      roleName: user.role.name,
-      permissions: userPermissions.map((p) => p.name),
-    };
+    req.user = user;
+    req.userRoles = userRoles;
+    req.userPermissions = [...new Set(userPermissions)] as string[]; // Remove duplicates
+
     next();
   } catch (error) {
-    res.status(401).json({
-      success: false,
-      message: "Invalid or expired token",
-    });
+    if (error instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({ message: "Invalid token" });
+    } else if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ message: "Token expired" });
+    } else {
+      res.status(500).json({ message: "Authentication error" });
+    }
   }
 };
 
 export const requireRole = (roles: string[]) => {
-  return (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ): void => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
+      res.status(401).json({ message: "Authentication required" });
       return;
     }
 
-    if (!req.user.roleName || !roles.includes(req.user.roleName)) {
-      res.status(403).json({
-        success: false,
-        message: "Insufficient permissions",
-      });
+    const hasRole = req.userRoles?.some((role) => roles.includes(role));
+
+    if (!hasRole) {
+      res.status(403).json({ message: "Insufficient role permissions" });
       return;
     }
 
@@ -93,10 +101,43 @@ export const requireRole = (roles: string[]) => {
   };
 };
 
-export const requireAdmin = requireRole(["admin"]);
-export const requireMerchant = requireRole(["admin", "merchant"]);
-export const requirePersonalShipper = requireRole([
-  "admin",
-  "merchant",
-  "personal_shipper",
-]);
+export const requirePermission = (permissions: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const hasPermission = req.userPermissions?.some((permission) =>
+      permissions.includes(permission)
+    );
+
+    if (!hasPermission) {
+      res.status(403).json({ message: "Insufficient permissions" });
+      return;
+    }
+
+    next();
+  };
+};
+
+export const requireResourcePermission = (resource: string, action: string) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const requiredPermission = `${resource}_${action}`;
+    const hasPermission = req.userPermissions?.includes(requiredPermission);
+
+    if (!hasPermission) {
+      res.status(403).json({
+        message: `Insufficient permissions for ${resource} ${action}`,
+      });
+      return;
+    }
+
+    next();
+  };
+};

@@ -1,538 +1,296 @@
 import { Request, Response } from "express";
-import { User, RefreshToken, Role, models } from "../../../db/models";
-import { JWTService } from "../../utils/jwt";
-import { RoleService } from "../../utils/roleService";
-import { AuthenticatedRequest as AuthRequest } from "../../../db/types";
-import { ResponseHandler, ResponseMessage } from "../../utils/responseHandler";
+import { User, Role } from "../../models";
+import { generateToken } from "../../utils/jwt";
+import { ResponseHandler } from "../../utils/responseHandler";
 
-interface AuthenticatedRequest extends Request, AuthRequest {}
+export const register = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      first_name,
+      last_name,
+      email,
+      password,
+      phone_number,
+      date_of_birth,
+      account_type,
+      agreement_acceptance,
+      marketing_opt_in,
+      social_media_acceptance,
+    } = req.body;
 
-export class AuthController {
-  /**
-   * Register a new user
-   */
-  static async register(req: Request, res: Response): Promise<void> {
-    try {
-      const { fullName, email, password, companyName } = req.body;
-
-      // Check if user already exists
-      const existingUser = await User.findOne({ where: { email } });
-      if (existingUser) {
-        ResponseHandler.badRequest(res, ResponseMessage.USER_EXISTS);
-        return;
-      }
-
-      // Get default user role
-      const defaultRole = await RoleService.getRoleByName("user");
-      if (!defaultRole) {
-        ResponseHandler.notFound(res, ResponseMessage.DEFAULT_ROLE_NOT_FOUND);
-        return;
-      }
-
-      // Create new user
-      const user = await User.create({
-        fullName,
-        email,
-        password,
-        companyName,
-        roleId: defaultRole.id,
-      });
-
-      // Generate tokens
-      const tokens = JWTService.generateTokens({
-        userId: user.id,
-        email: user.email,
-        roleId: user.roleId,
-      });
-
-      // Save refresh token
-      await RefreshToken.create({
-        token: tokens.refreshToken,
-        userId: user.id,
-        expiresAt: JWTService.getRefreshTokenExpiry(),
-      });
-
-      // Update last login
-      await user.update({ lastLoginAt: new Date() });
-
-      const responseData = {
-        user: {
-          id: user.id,
-          fullName: user.fullName,
-          email: user.email,
-          companyName: user.companyName,
-          role: defaultRole.name,
-          roleId: user.roleId,
-          emailVerified: user.emailVerified,
-        },
-        tokens: {
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          expiresIn: tokens.expiresIn,
-        },
-      };
-
-      ResponseHandler.registerSuccess(res, responseData);
-    } catch (error) {
-      console.error("Registration error:", error);
-      ResponseHandler.error(res, "Internal server error");
+    // Check if user already exists
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      ResponseHandler.conflict(res, "User with this email already exists");
+      return;
     }
-  }
 
-  /**
-   * Login user
-   */
-  static async login(req: Request, res: Response): Promise<void> {
-    try {
-      const { email, password } = req.body;
+    // Create new user
+    const user = await User.create({
+      first_name,
+      last_name,
+      email,
+      password,
+      phone_number,
+      date_of_birth: date_of_birth ? new Date(date_of_birth) : undefined,
+      account_type: account_type || "individual",
+      agreement_acceptance: agreement_acceptance || false,
+      marketing_opt_in: marketing_opt_in || false,
+      social_media_acceptance: social_media_acceptance || false,
+    });
 
-      // Find user by email with role
-      const user = await User.findOne({
-        where: { email },
-        include: [{ model: Role, as: "role" }],
-      });
-
-      if (!user) {
-        ResponseHandler.unauthorized(res, ResponseMessage.INVALID_CREDENTIALS);
-        return;
-      }
-
-      // Check if user is active
-      if (!user.isActive) {
-        ResponseHandler.unauthorized(res, ResponseMessage.ACCOUNT_DEACTIVATED);
-        return;
-      }
-
-      // Verify password
-      const isValidPassword = await user.comparePassword(password);
-      if (!isValidPassword) {
-        ResponseHandler.unauthorized(res, ResponseMessage.INVALID_CREDENTIALS);
-        return;
-      }
-
-      // Generate tokens
-      const tokens = JWTService.generateTokens({
-        userId: user.id,
-        email: user.email,
-        roleId: user.roleId,
-      });
-
-      // Save refresh token
-      await RefreshToken.create({
-        token: tokens.refreshToken,
-        userId: user.id,
-        expiresAt: JWTService.getRefreshTokenExpiry(),
-      });
-
-      // Update last login
-      await user.update({ lastLoginAt: new Date() });
-
-      const responseData = {
-        user: {
-          id: user.id,
-          fullName: user.fullName,
-          email: user.email,
-          companyName: user.companyName,
-          role: (user as any).role?.name || "user",
-          roleId: user.roleId,
-          emailVerified: user.emailVerified,
-        },
-        tokens: {
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          expiresIn: tokens.expiresIn,
-        },
-      };
-
-      ResponseHandler.loginSuccess(res, responseData);
-    } catch (error) {
-      console.error("Login error:", error);
-      ResponseHandler.error(res, "Internal server error");
+    // Assign default user role
+    const defaultRole = await Role.findOne({ where: { name: "user" } });
+    if (defaultRole) {
+      await user.update({ role_id: defaultRole.id });
     }
-  }
 
-  /**
-   * Refresh access token
-   */
-  static async refreshToken(req: Request, res: Response): Promise<void> {
-    try {
-      const { refreshToken } = req.body;
-
-      // Find refresh token
-      const tokenRecord = await RefreshToken.findOne({
-        where: { token: refreshToken },
-        include: [{ model: User, as: "user" }],
-      });
-
-      if (
-        !tokenRecord ||
-        tokenRecord.isRevoked ||
-        tokenRecord.expiresAt < new Date()
-      ) {
-        ResponseHandler.unauthorized(
-          res,
-          ResponseMessage.REFRESH_TOKEN_INVALID
-        );
-        return;
-      }
-
-      // Generate new tokens
-      const tokens = JWTService.generateTokens({
-        userId: tokenRecord.user.id,
-        email: tokenRecord.user.email,
-        roleId: tokenRecord.user.roleId,
-      });
-
-      // Revoke old refresh token
-      await tokenRecord.update({ isRevoked: true });
-
-      // Save new refresh token
-      await RefreshToken.create({
-        token: tokens.refreshToken,
-        userId: tokenRecord.user.id,
-        expiresAt: JWTService.getRefreshTokenExpiry(),
-      });
-
-      const responseData = {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresIn: tokens.expiresIn,
-      };
-
-      ResponseHandler.tokenRefreshed(res, responseData);
-    } catch (error) {
-      console.error("Refresh token error:", error);
-      ResponseHandler.error(res, "Internal server error");
-    }
-  }
-
-  /**
-   * Logout user
-   */
-  static async logout(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      const { refreshToken } = req.body;
-      const userId = req.user?.userId;
-
-      if (!userId) {
-        ResponseHandler.unauthorized(res, ResponseMessage.UNAUTHORIZED);
-        return;
-      }
-
-      // Revoke refresh token
-      await RefreshToken.update(
-        { isRevoked: true },
-        { where: { token: refreshToken, userId } }
-      );
-
-      ResponseHandler.logoutSuccess(res);
-    } catch (error) {
-      console.error("Logout error:", error);
-      ResponseHandler.error(res, "Internal server error");
-    }
-  }
-
-  /**
-   * Get user profile
-   */
-  static async getProfile(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      const userId = req.user?.userId;
-
-      if (!userId) {
-        ResponseHandler.unauthorized(res, ResponseMessage.UNAUTHORIZED);
-        return;
-      }
-
-      const user = await User.findByPk(userId, {
-        include: [{ model: Role, as: "role" }],
-      });
-
-      if (!user) {
-        ResponseHandler.notFound(res, ResponseMessage.NOT_FOUND);
-        return;
-      }
-
-      const userData = {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        companyName: user.companyName,
-        role: (user as any).role?.name || "user",
-        roleId: user.roleId,
-        emailVerified: user.emailVerified,
-        lastLoginAt: user.lastLoginAt,
-      };
-
-      ResponseHandler.success(res, { user: userData });
-    } catch (error) {
-      console.error("Get profile error:", error);
-      ResponseHandler.error(res, "Internal server error");
-    }
-  }
-
-  /**
-   * Update user profile
-   */
-  static async updateProfile(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      const userId = req.user?.userId;
-      const { fullName, companyName } = req.body;
-
-      if (!userId) {
-        ResponseHandler.unauthorized(res, ResponseMessage.UNAUTHORIZED);
-        return;
-      }
-
-      const user = await User.findByPk(userId);
-      if (!user) {
-        ResponseHandler.notFound(res, ResponseMessage.NOT_FOUND);
-        return;
-      }
-
-      // Update user
-      await user.update({ fullName, companyName });
-
-      // Get updated user with role
-      const userWithRole = await User.findByPk(userId, {
-        include: [{ model: Role, as: "role" }],
-      });
-
-      const userData = {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        companyName: user.companyName,
-        role: (userWithRole as any)?.role?.name || "user",
-        roleId: user.roleId,
-        emailVerified: user.emailVerified,
-      };
-
-      ResponseHandler.profileUpdated(res, { user: userData });
-    } catch (error) {
-      console.error("Update profile error:", error);
-      ResponseHandler.error(res, "Internal server error");
-    }
-  }
-
-  /**
-   * Change password
-   */
-  static async changePassword(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      const userId = req.user?.userId;
-      const { currentPassword, newPassword } = req.body;
-
-      if (!userId) {
-        ResponseHandler.unauthorized(res, ResponseMessage.UNAUTHORIZED);
-        return;
-      }
-
-      const user = await User.findByPk(userId);
-      if (!user) {
-        ResponseHandler.notFound(res, ResponseMessage.NOT_FOUND);
-        return;
-      }
-
-      // Verify current password
-      const isValidPassword = await user.comparePassword(currentPassword);
-      if (!isValidPassword) {
-        ResponseHandler.badRequest(
-          res,
-          ResponseMessage.CURRENT_PASSWORD_INCORRECT
-        );
-        return;
-      }
-
-      // Update password
-      await user.update({ password: newPassword });
-
-      ResponseHandler.passwordChanged(res);
-    } catch (error) {
-      console.error("Change password error:", error);
-      ResponseHandler.error(res, "Internal server error");
-    }
-  }
-
-  /**
-   * Get comprehensive account settings
-   */
-  static async getAccountSettings(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      const userId = req.user?.userId;
-
-      if (!userId) {
-        ResponseHandler.unauthorized(res, ResponseMessage.UNAUTHORIZED);
-        return;
-      }
-
-      const user = await User.findByPk(userId, {
-        include: [{ model: Role, as: "role" }],
-      });
-
-      if (!user) {
-        ResponseHandler.notFound(res, ResponseMessage.NOT_FOUND);
-        return;
-      }
-
-      // Mock business information data
-      const businessInfo = {
-        companyName: "Global Logistics Solutions Inc.",
-        businessType: "eCommerce Retailer",
-        addressLine1: "123 Commerce St, Suite 100",
-        city: "Metropolis",
-        state: "CA",
-        zipCode: "90210",
-        country: "United States",
-      };
-
-      const accountSettings = {
-        personalInfo: {
-          fullName: user.fullName,
-          email: user.email,
-          phoneNumber: "+1 (555) 123-4567", // Mock data
-        },
-        businessInfo,
-        lastUpdated: user.updatedAt,
-      };
-
-      ResponseHandler.success(
-        res,
-        { accountSettings },
-        "Account settings retrieved successfully"
-      );
-    } catch (error) {
-      console.error("Get account settings error:", error);
-      ResponseHandler.error(res, "Internal server error");
-    }
-  }
-
-  /**
-   * Update account settings
-   */
-  static async updateAccountSettings(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      const userId = req.user?.userId;
-      const { personalInfo, businessInfo } = req.body;
-
-      if (!userId) {
-        ResponseHandler.unauthorized(res, ResponseMessage.UNAUTHORIZED);
-        return;
-      }
-
-      const user = await User.findByPk(userId);
-      if (!user) {
-        ResponseHandler.notFound(res, ResponseMessage.NOT_FOUND);
-        return;
-      }
-
-      // Update personal information
-      if (personalInfo) {
-        await user.update({
-          fullName: personalInfo.fullName || user.fullName,
-          companyName: businessInfo?.companyName || user.companyName,
-        });
-      }
-
-      // Mock address validation
-      const addressValidation = {
-        isValid: true,
-        validatedAddress: businessInfo?.addressLine1
-          ? {
-              streetAddress1: businessInfo.addressLine1,
-              city: businessInfo.city,
-              state: businessInfo.state,
-              zipCode: businessInfo.zipCode,
-              country: businessInfo.country,
-            }
-          : null,
-        confidence: 0.95,
-      };
-
-      ResponseHandler.updated(
-        res,
+    // Get user role for token
+    const userWithRole = await User.findByPk(user.id, {
+      include: [
         {
-          message: "Account settings updated successfully",
-          addressValidation,
+          model: Role,
+          as: "role",
+          where: { is_active: true },
+          required: false,
         },
-        "Account settings updated successfully"
-      );
-    } catch (error) {
-      console.error("Update account settings error:", error);
-      ResponseHandler.error(res, "Internal server error");
-    }
-  }
+      ],
+    });
 
-  /**
-   * Handle post-login redirection to welcome page
-   */
-  static async postLoginRedirect(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      const userId = req.user?.userId;
+    const roles = userWithRole?.role ? [userWithRole.role.name] : [];
 
-      if (!userId) {
-        ResponseHandler.unauthorized(res, ResponseMessage.UNAUTHORIZED);
-        return;
-      }
+    // Generate token
+    const token = generateToken(user, roles);
 
-      const user = await User.findByPk(userId, {
-        include: [{ model: Role, as: "role" }],
-      });
+    // Update last login
+    await user.update({ last_login_at: new Date() });
 
-      if (!user) {
-        ResponseHandler.notFound(res, ResponseMessage.NOT_FOUND);
-        return;
-      }
-
-      // Get user's first name for welcome message
-      const firstName = user.fullName.split(" ")[0];
-
-      // Mock welcome page data
-      const welcomeData = {
+    ResponseHandler.created(
+      res,
+      {
         user: {
           id: user.id,
-          fullName: user.fullName,
-          firstName,
+          first_name: user.first_name,
+          last_name: user.last_name,
           email: user.email,
-          companyName: user.companyName,
-          role: (user as any)?.role?.name || "user",
+          phone_number: user.phone_number,
+          date_of_birth: user.date_of_birth,
+          account_type: user.account_type,
+          agreement_acceptance: user.agreement_acceptance,
+          marketing_opt_in: user.marketing_opt_in,
+          social_media_acceptance: user.social_media_acceptance,
+          is_email_verified: user.is_email_verified,
+          is_active: user.is_active,
+          roles: roles,
         },
-        redirectUrl: "/welcome", // Frontend route for welcome page
-        message: `Welcome to GlenvoShip, ${firstName}!`,
-        onboardingComplete: user.emailVerified,
-        nextSteps: [
-          "Complete your shipping profile",
-          "Add payment methods",
-          "Create your first shipment",
-        ],
-      };
-
-      ResponseHandler.success(
-        res,
-        { welcomeData },
-        "Login successful, redirecting to welcome page"
-      );
-    } catch (error) {
-      console.error("Post login redirect error:", error);
-      ResponseHandler.error(res, "Internal server error");
-    }
+        token,
+      },
+      "User registered successfully"
+    );
+  } catch (error) {
+    console.error("Registration error:", error);
+    ResponseHandler.error(res, "Registration failed");
   }
-}
+};
+
+export const login = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+
+    // Find user with role
+    const user = await User.findOne({
+      where: { email, is_active: true },
+      include: [
+        {
+          model: Role,
+          as: "role",
+          where: { is_active: true },
+          required: false,
+        },
+      ],
+    });
+
+    if (!user) {
+      ResponseHandler.unauthorized(res, "Invalid email or password");
+      return;
+    }
+
+    // Check password
+    const isValidPassword = await user.comparePassword(password);
+    console.log({ isValidPassword });
+    if (!isValidPassword) {
+      ResponseHandler.unauthorized(res, "Invalid email or password");
+      return;
+    }
+
+    // Get user role
+    const roles = user.role ? [user.role.name] : [];
+
+    // Generate token
+    const token = generateToken(user, roles);
+
+    // Update last login
+    await user.update({ last_login_at: new Date() });
+
+    ResponseHandler.success(
+      res,
+      {
+        user: {
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          phone_number: user.phone_number,
+          date_of_birth: user.date_of_birth,
+          profile_picture: user.profile_picture,
+          is_email_verified: user.is_email_verified,
+          is_active: user.is_active,
+          last_login_at: user.last_login_at,
+          roles: roles,
+        },
+        token,
+      },
+      "Login successful"
+    );
+  } catch (error) {
+    console.error("Login error:", error);
+    ResponseHandler.error(res, "Login failed");
+  }
+};
+
+export const getProfile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      include: [
+        {
+          model: Role,
+          as: "role",
+          where: { is_active: true },
+          required: false,
+          include: [
+            {
+              model: (await import("../../models")).Permission,
+              as: "permissions",
+              where: { is_active: true },
+              required: false,
+            },
+          ],
+        },
+      ],
+      attributes: {
+        exclude: ["password", "password_reset_token", "password_reset_expires"],
+      },
+    });
+
+    if (!user) {
+      ResponseHandler.notFound(res, "User not found");
+      return;
+    }
+
+    const roles = user.role ? [user.role.name] : [];
+    const permissions =
+      user.role?.permissions?.map((permission: any) => permission.name) || [];
+
+    ResponseHandler.success(
+      res,
+      {
+        user: {
+          ...user.toJSON(),
+          roles: roles,
+          permissions: [...new Set(permissions)], // Remove duplicates
+        },
+      },
+      "Profile retrieved successfully"
+    );
+  } catch (error) {
+    console.error("Get profile error:", error);
+    ResponseHandler.error(res, "Failed to retrieve profile");
+  }
+};
+
+export const updateProfile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const {
+      first_name,
+      last_name,
+      phone_number,
+      date_of_birth,
+      profile_picture,
+    } = req.body;
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      ResponseHandler.notFound(res, "User not found");
+      return;
+    }
+
+    // Update user
+    await user.update({
+      first_name: first_name || user.first_name,
+      last_name: last_name || user.last_name,
+      phone_number: phone_number || user.phone_number,
+      date_of_birth: date_of_birth
+        ? new Date(date_of_birth)
+        : user.date_of_birth,
+      profile_picture: profile_picture || user.profile_picture,
+    });
+
+    ResponseHandler.success(
+      res,
+      {
+        user: {
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          phone_number: user.phone_number,
+          date_of_birth: user.date_of_birth,
+          profile_picture: user.profile_picture,
+          is_email_verified: user.is_email_verified,
+          is_active: user.is_active,
+          last_login_at: user.last_login_at,
+        },
+      },
+      "Profile updated successfully"
+    );
+  } catch (error) {
+    console.error("Update profile error:", error);
+    ResponseHandler.error(res, "Failed to update profile");
+  }
+};
+
+export const changePassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { current_password, new_password } = req.body;
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      ResponseHandler.notFound(res, "User not found");
+      return;
+    }
+
+    // Verify current password
+    const isValidPassword = await user.comparePassword(current_password);
+    if (!isValidPassword) {
+      ResponseHandler.badRequest(res, "Current password is incorrect");
+      return;
+    }
+
+    // Update password
+    await user.update({ password: new_password });
+
+    ResponseHandler.success(res, null, "Password changed successfully");
+  } catch (error) {
+    console.error("Change password error:", error);
+    ResponseHandler.error(res, "Failed to change password");
+  }
+};

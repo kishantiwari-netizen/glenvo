@@ -1,31 +1,49 @@
-# GlenvoShip Authentication API
+# Node.js TypeScript API with Authentication
 
-A comprehensive authentication system for the GlenvoShip platform built with Node.js, TypeScript, Express, Sequelize, and JWT.
+A complete Node.js TypeScript API with Sequelize, PostgreSQL, Swagger documentation, and Role-based Authentication system.
 
-## 🚀 Features
+## Features
 
-- **User Authentication**: Register, login, logout with JWT tokens
-- **Role-Based Access Control**: 8 different user roles (Admin, Merchant, Personal Shipper, etc.)
-- **Token Management**: Access tokens and refresh tokens with automatic expiration
-- **Profile Management**: Update user profiles and change passwords
-- **Security**: Password hashing, rate limiting, CORS, Helmet security headers
-- **API Documentation**: Complete Swagger/OpenAPI documentation
-- **Database Migrations**: Proper Sequelize migrations for database schema
-- **TypeScript**: Full TypeScript support with proper type definitions
+- 🔐 **JWT Authentication** with role-based access control
+- 👥 **User Management** with CRUD operations
+- 🎭 **Role & Permission System** with granular permissions
+- 📚 **Swagger API Documentation** with interactive UI
+- 🗄️ **PostgreSQL Database** with Sequelize ORM
+- 🔒 **Security Features** (Helmet, CORS, Rate Limiting)
+- ✅ **Input Validation** with express-validator
+- 🏗️ **TypeScript** for type safety
+- 📝 **Database Migrations & Seeders**
 
-## 📋 Prerequisites
+## Database Schema
+
+### Tables
+
+- `users` - User accounts with profile information
+- `roles` - User roles (super_admin, admin, user, moderator)
+- `permissions` - Granular permissions (user_create, user_read, etc.)
+- `user_roles` - Many-to-many relationship between users and roles
+- `role_permissions` - Many-to-many relationship between roles and permissions
+
+### Default Roles & Permissions
+
+- **Super Admin**: All permissions
+- **Admin**: User and role management permissions
+- **Moderator**: User read and update permissions
+- **User**: Basic read permissions
+
+## Prerequisites
 
 - Node.js (v16 or higher)
-- MySQL (v8.0 or higher)
+- PostgreSQL (v12 or higher)
 - npm or yarn
 
-## 🛠️ Installation
+## Installation
 
 1. **Clone the repository**
 
    ```bash
    git clone <repository-url>
-   cd glenvo-project
+   cd api-with-auth
    ```
 
 2. **Install dependencies**
@@ -40,255 +58,209 @@ A comprehensive authentication system for the GlenvoShip platform built with Nod
    cp env.example .env
    ```
 
-   Edit `.env` file with your configuration:
+   Edit `.env` file with your database credentials:
 
    ```env
-   # Server Configuration
-   PORT=3000
-   NODE_ENV=development
-
    # Database Configuration
    DB_HOST=localhost
-   DB_PORT=3306
-   DB_NAME=glenvo_auth
-   DB_USER=root
+   DB_PORT=5432
+   DB_NAME=api_auth_db
+   DB_USER=postgres
    DB_PASSWORD=your_password
 
    # JWT Configuration
-   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+   JWT_SECRET=your_jwt_secret_key_here
    JWT_EXPIRES_IN=24h
-   JWT_REFRESH_EXPIRES_IN=7d
 
-   # Rate Limiting
-   RATE_LIMIT_WINDOW_MS=900000
-   RATE_LIMIT_MAX_REQUESTS=100
-
-   # CORS
-   CORS_ORIGIN=http://localhost:3000
+   # Server Configuration
+   PORT=3000
+   NODE_ENV=development
    ```
 
-4. **Create MySQL database**
+4. **Create PostgreSQL database**
 
    ```sql
-   CREATE DATABASE glenvo_auth;
+   CREATE DATABASE api_auth_db;
    ```
 
-5. **Run database migrations**
+5. **Run database migrations and seeders**
 
    ```bash
-   npm run migrate
+   npm run db:migrate
+   npm run db:seed
    ```
 
-6. **Start the development server**
+6. **Build and start the application**
+
    ```bash
+   # Development
    npm run dev
+
+   # Production
+   npm run build
+   npm start
    ```
 
-## 📚 API Documentation
+## API Documentation
 
-Once the server is running, you can access the interactive API documentation at:
+Once the server is running, you can access the Swagger documentation at:
 
-- **Swagger UI**: http://localhost:3000/api-docs
-- **Health Check**: http://localhost:3000/health
-
-## 🔐 Authentication Endpoints
-
-### Register User
-
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "fullName": "John Doe",
-  "email": "john.doe@example.com",
-  "password": "password123",
-  "confirmPassword": "password123",
-  "companyName": "PFX International Inc."
-}
+```
+http://localhost:3000/api-docs
 ```
 
-### Login
+## Default Admin Account
 
-```http
-POST /api/auth/login
-Content-Type: application/json
+After running the seeders, you'll have a default super admin account:
 
-{
-  "email": "john.doe@example.com",
-  "password": "password123"
-}
-```
+- **Email**: admin@example.com
+- **Password**: admin123
 
-### Refresh Token
+## API Endpoints
 
-```http
-POST /api/auth/refresh
-Content-Type: application/json
+### Authentication
 
-{
-  "refreshToken": "your-refresh-token"
-}
-```
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - Login user
+- `GET /api/auth/profile` - Get user profile
+- `PUT /api/auth/profile` - Update user profile
+- `POST /api/auth/change-password` - Change password
 
-### Get Profile
+### User Management
 
-```http
-GET /api/auth/profile
-Authorization: Bearer your-access-token
-```
+- `GET /api/users` - Get all users (with pagination and filters)
+- `GET /api/users/:id` - Get user by ID
+- `POST /api/users` - Create new user
+- `PUT /api/users/:id` - Update user
+- `DELETE /api/users/:id` - Delete user (soft delete)
+- `POST /api/users/:id/roles` - Assign roles to user
 
-### Update Profile
+## Usage Examples
 
-```http
-PUT /api/auth/profile
-Authorization: Bearer your-access-token
-Content-Type: application/json
-
-{
-  "fullName": "John Updated",
-  "companyName": "Updated Company"
-}
-```
-
-### Change Password
-
-```http
-POST /api/auth/change-password
-Authorization: Bearer your-access-token
-Content-Type: application/json
-
-{
-  "currentPassword": "oldpassword",
-  "newPassword": "newpassword123",
-  "confirmNewPassword": "newpassword123"
-}
-```
-
-### Logout
-
-```http
-POST /api/auth/logout
-Authorization: Bearer your-access-token
-Content-Type: application/json
-
-{
-  "refreshToken": "your-refresh-token"
-}
-```
-
-## 👥 User Roles
-
-The system supports 8 different user roles:
-
-1. **Admin**: Full system access, managing all configurations and users
-2. **Merchant**: Access to shipping operations, order management, and analytics
-3. **Personal Shipper**: Manage personal shipments, track packages
-4. **Operations Manager**: Oversees logistics, inventory, and supply chain
-5. **Customer Support**: Handles customer inquiries and support tickets
-6. **Financial Analyst**: Manages financial reporting and invoicing
-7. **Marketing Specialist**: Manages promotional campaigns and content
-8. **Guest Viewer**: Limited read-only access for monitoring
-
-## 🗄️ Database Schema
-
-### Users Table
-
-- `id` (Primary Key)
-- `full_name` (VARCHAR)
-- `email` (VARCHAR, Unique)
-- `password` (VARCHAR, Hashed)
-- `company_name` (VARCHAR, Optional)
-- `role` (ENUM)
-- `is_active` (BOOLEAN)
-- `email_verified` (BOOLEAN)
-- `last_login_at` (DATETIME)
-- `created_at` (DATETIME)
-- `updated_at` (DATETIME)
-
-### Refresh Tokens Table
-
-- `id` (Primary Key)
-- `token` (VARCHAR, Unique)
-- `user_id` (Foreign Key)
-- `expires_at` (DATETIME)
-- `is_revoked` (BOOLEAN)
-- `created_at` (DATETIME)
-- `updated_at` (DATETIME)
-
-## 🚀 Available Scripts
+### 1. Register a new user
 
 ```bash
-# Development
-npm run dev          # Start development server with hot reload
-
-# Production
-npm run build        # Build TypeScript to JavaScript
-npm start           # Start production server
-
-# Database
-npm run migrate     # Run database migrations
-npm run migrate:undo # Undo last migration
-npm run seed        # Run database seeders
-npm run seed:undo   # Undo database seeders
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john@example.com",
+    "password": "password123"
+  }'
 ```
 
-## 🔧 Configuration
+### 2. Login
 
-### Environment Variables
-
-| Variable                  | Description              | Default               |
-| ------------------------- | ------------------------ | --------------------- |
-| `PORT`                    | Server port              | 3000                  |
-| `NODE_ENV`                | Environment              | development           |
-| `DB_HOST`                 | Database host            | localhost             |
-| `DB_PORT`                 | Database port            | 3306                  |
-| `DB_NAME`                 | Database name            | glenvo_auth           |
-| `DB_USER`                 | Database user            | root                  |
-| `DB_PASSWORD`             | Database password        | -                     |
-| `JWT_SECRET`              | JWT secret key           | -                     |
-| `JWT_EXPIRES_IN`          | JWT expiration           | 24h                   |
-| `JWT_REFRESH_EXPIRES_IN`  | Refresh token expiration | 7d                    |
-| `RATE_LIMIT_WINDOW_MS`    | Rate limit window        | 900000                |
-| `RATE_LIMIT_MAX_REQUESTS` | Max requests per window  | 100                   |
-| `CORS_ORIGIN`             | CORS origin              | http://localhost:3000 |
-
-## 🛡️ Security Features
-
-- **Password Hashing**: Bcrypt with salt rounds
-- **JWT Tokens**: Secure token-based authentication
-- **Rate Limiting**: Prevents brute force attacks
-- **CORS**: Cross-origin resource sharing protection
-- **Helmet**: Security headers
-- **Input Validation**: class-validator decorator-based validation
-- **SQL Injection Protection**: Sequelize ORM
-
-## 📝 Development
-
-### Project Structure
-
-```
-src/
-├── config/          # Configuration files
-├── controllers/     # Route controllers
-├── middleware/      # Custom middleware
-├── models/          # Sequelize models
-├── routes/          # API routes
-├── utils/           # Utility functions
-├── migrations/      # Database migrations
-└── server.ts        # Main server file
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "admin123"
+  }'
 ```
 
-### Adding New Features
+### 3. Get users (with authentication)
 
-1. **Create Model**: Add new model in `src/models/`
-2. **Create Migration**: Generate migration with `npx sequelize-cli migration:generate`
-3. **Create Controller**: Add controller logic in `src/controllers/`
-4. **Create Routes**: Define routes in `src/routes/`
-5. **Add Validation**: Create validation schemas in `src/utils/validation.ts`
-6. **Update Documentation**: Add Swagger comments to routes
+```bash
+curl -X GET http://localhost:3000/api/users \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
 
-## 🤝 Contributing
+### 4. Create a new user (admin only)
+
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "jane@example.com",
+    "password": "password123",
+    "role_ids": [2]
+  }'
+```
+
+## Database Commands
+
+```bash
+# Run migrations
+npm run db:migrate
+
+# Run seeders
+npm run db:seed
+
+# Reset database (drop, create, migrate, seed)
+npm run db:reset
+```
+
+## Project Structure
+
+```
+├── src/
+│   ├── controllers/     # Route controllers
+│   ├── middleware/      # Custom middleware
+│   ├── models/          # Sequelize models
+│   ├── routes/          # API routes
+│   ├── utils/           # Utility functions
+│   └── index.ts         # Main application file
+├── db/
+│   ├── config/          # Database configuration
+│   ├── migrations/      # Database migrations
+│   └── seeders/         # Database seeders
+├── package.json
+├── tsconfig.json
+├── .sequelizerc
+└── README.md
+```
+
+## Security Features
+
+- **JWT Authentication** with configurable expiration
+- **Role-based Access Control** with granular permissions
+- **Password Hashing** using bcrypt
+- **Input Validation** with express-validator
+- **Rate Limiting** to prevent abuse
+- **CORS Protection** with configurable origins
+- **Helmet** for security headers
+- **SQL Injection Protection** via Sequelize
+
+## Environment Variables
+
+| Variable                  | Description             | Default     |
+| ------------------------- | ----------------------- | ----------- |
+| `DB_HOST`                 | PostgreSQL host         | localhost   |
+| `DB_PORT`                 | PostgreSQL port         | 5432        |
+| `DB_NAME`                 | Database name           | api_auth_db |
+| `DB_USER`                 | Database user           | postgres    |
+| `DB_PASSWORD`             | Database password       | -           |
+| `JWT_SECRET`              | JWT secret key          | -           |
+| `JWT_EXPIRES_IN`          | JWT expiration time     | 24h         |
+| `PORT`                    | Server port             | 3000        |
+| `NODE_ENV`                | Environment             | development |
+| `RATE_LIMIT_WINDOW_MS`    | Rate limit window       | 900000      |
+| `RATE_LIMIT_MAX_REQUESTS` | Rate limit max requests | 100         |
+
+## Development
+
+```bash
+# Start development server with hot reload
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+## Testing
+
+The API includes comprehensive error handling and validation. You can test all endpoints using the Swagger UI or tools like Postman.
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -296,14 +268,6 @@ src/
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License.
-
-## 🆘 Support
-
-For support, email support@glenvo.com or create an issue in the repository.
-
----
-
-**GlenvoShip Team** - Building the future of shipping logistics 🚢

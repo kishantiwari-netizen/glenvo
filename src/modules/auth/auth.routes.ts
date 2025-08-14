@@ -1,17 +1,108 @@
 import { Router } from "express";
-import { AuthController } from "./auth.controller";
+import * as authController from "./auth.controller";
 import { authenticateToken } from "../../middleware/auth";
-import { validateRequest } from "../../middleware/validation";
+import { validateDTO } from "../../middleware/class-validator";
 import {
-  LoginDto,
-  RegisterDto,
-  RefreshTokenDto,
-  LogoutDto,
-  ChangePasswordDto,
-  UpdateProfileDto,
-} from "./dto/auth.dto";
+  RegisterDTO,
+  LoginDTO,
+  UpdateProfileDTO,
+  ChangePasswordDTO,
+} from "./dto";
 
 const router = Router();
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     LoginRequest:
+ *       type: object
+ *       required:
+ *         - email
+ *         - password
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: User's email address
+ *         password:
+ *           type: string
+ *           minLength: 6
+ *           description: User's password
+ *     RegisterRequest:
+ *       type: object
+ *       required:
+ *         - first_name
+ *         - last_name
+ *         - email
+ *         - password
+ *       properties:
+ *         first_name:
+ *           type: string
+ *           minLength: 1
+ *           maxLength: 50
+ *           description: User's first name
+ *         last_name:
+ *           type: string
+ *           minLength: 1
+ *           maxLength: 50
+ *           description: User's last name
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: User's email address
+ *         password:
+ *           type: string
+ *           minLength: 6
+ *           description: User's password
+ *         phone_number:
+ *           type: string
+ *           description: User's phone number
+ *         date_of_birth:
+ *           type: string
+ *           format: date
+ *           description: User's date of birth
+ *         account_type:
+ *           type: string
+ *           enum: [individual, business]
+ *           description: Type of account (individual or business)
+ *         agreement_acceptance:
+ *           type: boolean
+ *           description: Whether user accepted terms of service
+ *         marketing_opt_in:
+ *           type: boolean
+ *           description: Whether user opted in for marketing communications
+ *         social_media_acceptance:
+ *           type: boolean
+ *           description: Whether user accepted social media terms
+ *     AuthResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *         message:
+ *           type: string
+ *         data:
+ *           type: object
+ *           properties:
+ *             user:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 first_name:
+ *                   type: string
+ *                 last_name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 roles:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *             token:
+ *               type: string
+ */
 
 /**
  * @swagger
@@ -24,32 +115,20 @@ const router = Router();
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - fullName
- *               - email
- *               - password
- *             properties:
- *               fullName:
- *                 type: string
- *                 minLength: 2
- *                 maxLength: 100
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 minLength: 6
- *               companyName:
- *                 type: string
- *                 maxLength: 255
+ *             $ref: '#/components/schemas/RegisterRequest'
  *     responses:
  *       201:
  *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
  *       400:
- *         description: Validation error or user already exists
+ *         description: Bad request - validation error or user already exists
+ *       500:
+ *         description: Internal server error
  */
-router.post("/register", validateRequest(RegisterDto), AuthController.register);
+router.post("/register", validateDTO(RegisterDTO), authController.register);
 
 /**
  * @swagger
@@ -62,84 +141,20 @@ router.post("/register", validateRequest(RegisterDto), AuthController.register);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
+ *             $ref: '#/components/schemas/LoginRequest'
  *     responses:
  *       200:
  *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
  *       401:
  *         description: Invalid credentials
+ *       500:
+ *         description: Internal server error
  */
-router.post("/login", validateRequest(LoginDto), AuthController.login);
-
-/**
- * @swagger
- * /api/auth/refresh:
- *   post:
- *     summary: Refresh access token
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - refreshToken
- *             properties:
- *               refreshToken:
- *                 type: string
- *     responses:
- *       200:
- *         description: Token refreshed successfully
- *       401:
- *         description: Invalid refresh token
- */
-router.post(
-  "/refresh",
-  validateRequest(RefreshTokenDto),
-  AuthController.refreshToken
-);
-
-/**
- * @swagger
- * /api/auth/logout:
- *   post:
- *     summary: Logout user
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - refreshToken
- *             properties:
- *               refreshToken:
- *                 type: string
- *     responses:
- *       200:
- *         description: Logged out successfully
- *       401:
- *         description: Authentication required
- */
-router.post(
-  "/logout",
-  authenticateToken,
-  validateRequest(LogoutDto),
-  AuthController.logout
-);
+router.post("/login", validateDTO(LoginDTO), authController.login);
 
 /**
  * @swagger
@@ -151,11 +166,27 @@ router.post(
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: User profile retrieved successfully
+ *         description: Profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
  *       401:
- *         description: Authentication required
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
  */
-router.get("/profile", authenticateToken, AuthController.getProfile);
+router.get("/profile", authenticateToken, authController.getProfile);
 
 /**
  * @swagger
@@ -172,24 +203,30 @@ router.get("/profile", authenticateToken, AuthController.getProfile);
  *           schema:
  *             type: object
  *             properties:
- *               fullName:
+ *               first_name:
  *                 type: string
- *                 minLength: 2
- *                 maxLength: 100
- *               companyName:
+ *               last_name:
  *                 type: string
- *                 maxLength: 255
+ *               phone_number:
+ *                 type: string
+ *               date_of_birth:
+ *                 type: string
+ *                 format: date
+ *               profile_picture:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Profile updated successfully
  *       401:
- *         description: Authentication required
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
  */
 router.put(
   "/profile",
   authenticateToken,
-  validateRequest(UpdateProfileDto),
-  AuthController.updateProfile
+  validateDTO(UpdateProfileDTO),
+  authController.updateProfile
 );
 
 /**
@@ -207,12 +244,12 @@ router.put(
  *           schema:
  *             type: object
  *             required:
- *               - currentPassword
- *               - newPassword
+ *               - current_password
+ *               - new_password
  *             properties:
- *               currentPassword:
+ *               current_password:
  *                 type: string
- *               newPassword:
+ *               new_password:
  *                 type: string
  *                 minLength: 6
  *     responses:
@@ -221,104 +258,15 @@ router.put(
  *       400:
  *         description: Current password is incorrect
  *       401:
- *         description: Authentication required
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
  */
 router.post(
   "/change-password",
   authenticateToken,
-  validateRequest(ChangePasswordDto),
-  AuthController.changePassword
-);
-
-/**
- * @swagger
- * /api/auth/account-settings:
- *   get:
- *     summary: Get comprehensive account settings
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Account settings retrieved successfully
- *       401:
- *         description: Authentication required
- */
-router.get(
-  "/account-settings",
-  authenticateToken,
-  AuthController.getAccountSettings
-);
-
-/**
- * @swagger
- * /api/auth/account-settings:
- *   put:
- *     summary: Update account settings
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               personalInfo:
- *                 type: object
- *                 properties:
- *                   fullName:
- *                     type: string
- *                   phoneNumber:
- *                     type: string
- *               businessInfo:
- *                 type: object
- *                 properties:
- *                   companyName:
- *                     type: string
- *                   businessType:
- *                     type: string
- *                   addressLine1:
- *                     type: string
- *                   city:
- *                     type: string
- *                   state:
- *                     type: string
- *                   zipCode:
- *                     type: string
- *                   country:
- *                     type: string
- *     responses:
- *       200:
- *         description: Account settings updated successfully
- *       401:
- *         description: Authentication required
- */
-router.put(
-  "/account-settings",
-  authenticateToken,
-  AuthController.updateAccountSettings
-);
-
-/**
- * @swagger
- * /api/auth/post-login-redirect:
- *   get:
- *     summary: Handle post-login redirection to welcome page
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Welcome page data retrieved successfully
- *       401:
- *         description: Authentication required
- */
-router.get(
-  "/post-login-redirect",
-  authenticateToken,
-  AuthController.postLoginRedirect
+  validateDTO(ChangePasswordDTO),
+  authController.changePassword
 );
 
 export default router;

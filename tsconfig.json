@@ -4,10 +4,9 @@
     "module": "commonjs",
     "lib": ["ES2020"],
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
@@ -18,24 +17,23 @@
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
-    "noImplicitThis": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
-    "baseUrl": "./",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "strictPropertyInitialization": false,
+    "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"],
-      "@/models/*": ["db/models/*"],
+      "@/models/*": ["src/models/*"],
       "@/controllers/*": ["src/controllers/*"],
       "@/middleware/*": ["src/middleware/*"],
       "@/routes/*": ["src/routes/*"],
       "@/utils/*": ["src/utils/*"],
-      "@/config/*": ["src/config/*"],
-      "@/db/*": ["db/*"]
+      "@/config/*": ["src/config/*"]
     }
   },
-  "include": ["src/**/*", "db/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

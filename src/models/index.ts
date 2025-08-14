@@ -1,0 +1,76 @@
+import { Sequelize } from "sequelize";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  host: process.env.DB_HOST || "localhost",
+  port: parseInt(process.env.DB_PORT || "5432"),
+  database: process.env.DB_NAME || "api_auth_db",
+  username: process.env.DB_USER || "postgres",
+  password: process.env.DB_PASSWORD || "your_password",
+  logging: process.env.NODE_ENV === "development" ? console.log : false,
+  define: {
+    timestamps: true,
+    underscored: true,
+    freezeTableName: true,
+  },
+});
+
+// Import models
+import User from "./User";
+import Role from "./Role";
+import Permission from "./Permission";
+import UserRole from "./UserRole";
+import RolePermission from "./RolePermission";
+import ShippingProfile from "./ShippingProfile";
+
+// Define associations
+// User has one role (single role per user)
+User.belongsTo(Role, {
+  foreignKey: "role_id",
+  as: "role",
+});
+
+Role.hasMany(User, {
+  foreignKey: "role_id",
+  as: "users",
+});
+
+// User has one shipping profile
+User.hasOne(ShippingProfile, {
+  foreignKey: "user_id",
+  as: "shipping_profile",
+});
+
+ShippingProfile.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+Role.belongsToMany(Permission, {
+  through: RolePermission,
+  foreignKey: "role_id",
+  otherKey: "permission_id",
+  as: "permissions",
+});
+
+Permission.belongsToMany(Role, {
+  through: RolePermission,
+  foreignKey: "permission_id",
+  otherKey: "role_id",
+  as: "roles",
+});
+
+export {
+  sequelize,
+  User,
+  Role,
+  Permission,
+  UserRole,
+  RolePermission,
+  ShippingProfile,
+};
+
+export default sequelize;

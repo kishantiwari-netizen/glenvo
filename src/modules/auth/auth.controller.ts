@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
-import { User, Role } from "../../models";
+import { User, Role, ShippingProfile } from "../../models";
 import { generateToken } from "../../utils/jwt";
 import { ResponseHandler } from "../../utils/responseHandler";
+import EasyPostService from "../easypost/easypost.service";
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -38,6 +39,49 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       marketing_opt_in: marketing_opt_in || false,
       social_media_acceptance: social_media_acceptance || false,
     });
+
+    // Create EasyPost sub-account for the user
+    try {
+      const easyPostService = new EasyPostService();
+      const webhookUrl = `${
+        process.env.API_BASE_URL || "http://localhost:3000"
+      }/api/webhooks/easypost`;
+
+      const subAccount = await easyPostService.createSubAccount({
+        name: `${first_name} ${last_name}`,
+        email: email,
+        phone_number: phone_number,
+        company_name:
+          account_type === "business"
+            ? `${first_name} ${last_name} Business`
+            : undefined,
+      });
+      console.log(
+        "-------------------subAccount------------------->",
+        subAccount
+      );
+      // Create webhook subscription for the sub-account
+      const webhook = await easyPostService.createWebhookSubscription(
+        subAccount.api_key || "",
+        webhookUrl,
+        process.env.NODE_ENV === "production" ? "production" : "test"
+      );
+
+      // Update user with EasyPost sub-account information
+      await user.update({
+        easypost_user_id: subAccount.id,
+        easypost_api_key: subAccount.api_key,
+        easypost_webhook_url: webhook.url,
+      });
+
+      console.log(
+        `EasyPost sub-account created for user ${user.id}: ${subAccount.id}`
+      );
+    } catch (error) {
+      console.error("Failed to create EasyPost sub-account:", error);
+      // Don't fail registration if EasyPost sub-account creation fails
+      // The user can still use the system, but shipping features may be limited
+    }
 
     // Assign default user role
     const defaultRole = await Role.findOne({ where: { name: "user" } });
@@ -107,6 +151,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           where: { is_active: true },
           required: false,
         },
+        {
+          model: ShippingProfile,
+          as: "shipping_profile",
+          where: { is_active: true },
+          required: false,
+        },
       ],
     });
 
@@ -146,6 +196,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           is_email_verified: user.is_email_verified,
           is_active: user.is_active,
           last_login_at: user.last_login_at,
+          is_profile_setup_complete:
+            user.shipping_profile?.is_profile_setup_complete,
           roles: roles,
         },
         token,

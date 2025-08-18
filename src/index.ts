@@ -7,7 +7,14 @@ import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import dotenv from "dotenv";
 import { sequelize } from "./models";
-import { authRoutes, usersRoutes, profileSetupRoutes } from "./modules";
+import {
+  authRoutes,
+  usersRoutes,
+  profileSetupRoutes,
+  shippingRoutes,
+  webhookRoutes,
+  adminRoutes,
+} from "./modules";
 import { ResponseHandler } from "./utils/responseHandler";
 
 // Load environment variables
@@ -46,10 +53,14 @@ const swaggerOptions = {
       },
     },
   },
-  apis: ["./src/modules/**/*.ts"],
+  apis: [
+    "./src/modules/**/*.routes.ts",
+    "./src/modules/**/*.routes.js",
+    "./dist/modules/**/*.routes.js",
+  ],
 };
 
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
+const swaggerSpec = swaggerJsdoc(swaggerOptions) as any;
 
 // Rate limiting
 const limiter = rateLimit({
@@ -83,6 +94,9 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/profile-setup", profileSetupRoutes);
+app.use("/api/shipping", shippingRoutes);
+app.use("/api/webhooks", webhookRoutes);
+app.use("/api/admin", adminRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

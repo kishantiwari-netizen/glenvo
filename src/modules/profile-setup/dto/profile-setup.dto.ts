@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsEmail,
-  IsEnum,
-  IsBoolean,
-} from "class-validator";
+import { IsString, IsOptional, IsEmail, IsEnum, IsBoolean } from 'class-validator';
 
 export class ProfileSetupDto {
   @IsString()
@@ -15,8 +9,7 @@ export class ProfileSetupDto {
   email: string;
 
   @IsString()
-  @IsOptional()
-  phone_number?: string;
+  phone_number: string;
 
   @IsString()
   country: string;
@@ -35,13 +28,13 @@ export class ProfileSetupDto {
   city: string;
 
   @IsString()
-  state: string;
+  state_province: string;
 
   @IsString()
   postal_code: string;
 
-  @IsEnum(["individual", "business"])
-  account_type: "individual" | "business";
+  @IsEnum(['individual', 'business'])
+  account_type: 'individual' | 'business';
 }
 
 export default ProfileSetupDto;

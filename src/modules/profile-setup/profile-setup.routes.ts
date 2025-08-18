@@ -52,7 +52,7 @@ const router = Router();
  *         city:
  *           type: string
  *           description: City name
- *         state:
+ *         state_province:
  *           type: string
  *           description: State or province
  *         postal_code:

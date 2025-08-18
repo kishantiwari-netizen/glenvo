@@ -21,6 +21,9 @@ interface UserAttributes {
   password_reset_token?: string;
   password_reset_expires?: Date;
   role_id?: number;
+  easypost_user_id?: string;
+  easypost_api_key?: string;
+  easypost_webhook_url?: string;
   created_at?: Date;
   updated_at?: Date;
   role?: any;
@@ -45,6 +48,9 @@ interface UserCreationAttributes {
   password_reset_token?: string;
   password_reset_expires?: Date;
   role_id?: number;
+  easypost_user_id?: string;
+  easypost_api_key?: string;
+  easypost_webhook_url?: string;
 }
 
 class User
@@ -69,6 +75,9 @@ class User
   public password_reset_token?: string;
   public password_reset_expires?: Date;
   public role_id?: number;
+  public easypost_user_id?: string;
+  public easypost_api_key?: string;
+  public easypost_webhook_url?: string;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public role?: any; // For Sequelize associations
@@ -193,6 +202,18 @@ User.init(
       },
       onUpdate: "CASCADE",
       onDelete: "SET NULL",
+    },
+    easypost_user_id: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    easypost_api_key: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    easypost_webhook_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,

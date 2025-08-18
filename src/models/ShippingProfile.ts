@@ -13,6 +13,7 @@ interface ShippingProfileAttributes {
   state_province?: string;
   postal_code?: string;
   is_profile_setup_complete?: boolean;
+  is_active?: boolean;
   easypost_address_id?: string;
   easypost_verified_at?: Date;
   created_at?: Date;
@@ -37,6 +38,7 @@ class ShippingProfile
   public state_province?: string;
   public postal_code?: string;
   public is_profile_setup_complete?: boolean;
+  public is_active?: boolean;
   public easypost_address_id?: string;
   public easypost_verified_at?: Date;
   public readonly created_at!: Date;
@@ -97,6 +99,11 @@ ShippingProfile.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
+    },
+    is_active: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
     },
     easypost_address_id: {
       type: DataTypes.STRING(255),

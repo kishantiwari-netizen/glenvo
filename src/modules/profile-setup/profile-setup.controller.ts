@@ -20,38 +20,92 @@ export const setupProfile = async (
     }
 
     // Verify address using EasyPost
-    // const easyPostService = new EasyPostService();
-    // const addressData = {
-    //   street1: profileData.street_address_line_1,
-    //   street2: profileData.street_address_line_2,
-    //   city: profileData.city,
-    //   state: profileData.state_province,
-    //   zip: profileData.postal_code,
-    //   country: profileData.country,
-    //   company: profileData.company_name,
-    //   name: `${user.first_name} ${user.last_name}`,
-    //   phone: profileData.phone_number,
-    // };
+    const easyPostService = new EasyPostService();
+    const addressData = {
+      street1: profileData.street_address_line_1,
+      street2: profileData.street_address_line_2,
+      city: profileData.city,
+      state: profileData.state_province,
+      zip: profileData.postal_code,
+      country: profileData.country,
+      company: profileData.company_name,
+      name: `${user.first_name} ${user.last_name}`,
+      phone: profileData.phone_number,
+    };
 
-    // const verifiedAddress = await easyPostService.verifyAddress(addressData);
+    const verifiedAddress = await easyPostService.verifyAddress(addressData);
 
-    // if (!verifiedAddress.verified) {
-    //   ResponseHandler.error(
-    //     res,
-    //     "Address verification failed",
-    //     400,
-    //     JSON.stringify({
-    //       verification_errors: verifiedAddress.verification_errors,
-    //     })
-    //   );
-    //   return;
-    // }
+    if (!verifiedAddress.verified) {
+      ResponseHandler.error(
+        res,
+        "Address verification failed",
+        400,
+        JSON.stringify({
+          verification_errors: verifiedAddress.verification_errors,
+        })
+      );
+      return;
+    }
 
     // Update user profile with phone number and account type
     await user.update({
       phone_number: profileData.phone_number,
       account_type: profileData.account_type,
     });
+
+    // Create EasyPost sub-account if not already created
+    if (!user.easypost_user_id) {
+      try {
+        const easyPostService = new EasyPostService();
+        const webhookUrl = `${
+          process.env.API_BASE_URL || `http://localhost:${process.env.PORT}`
+        }/api/webhooks/easypost`;
+
+        // Check if we're in test mode
+        const isTestMode =
+          process.env.NODE_ENV === "test" ||
+          (process.env.EASYPOST_API_KEY &&
+            process.env.EASYPOST_API_KEY.includes("test"));
+
+        if (isTestMode) {
+          console.log(
+            "Running in test mode - creating mock EasyPost sub-account"
+          );
+        }
+
+        const subAccount = await easyPostService.createSubAccount({
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email,
+          phone_number: profileData.phone_number,
+          company_name:
+            profileData.account_type === "business"
+              ? profileData.company_name
+              : undefined,
+        });
+
+        // Create webhook subscription for the sub-account
+        const webhook = await easyPostService.createWebhookSubscription(
+          subAccount.api_key || "",
+          webhookUrl,
+          process.env.NODE_ENV === "production" ? "production" : "test"
+        );
+
+        // Update user with EasyPost sub-account information
+        await user.update({
+          easypost_user_id: subAccount.id,
+          easypost_api_key: subAccount.api_key,
+          easypost_webhook_url: webhook.url,
+        });
+
+        console.log(
+          `EasyPost sub-account created for user ${user.id}: ${subAccount.id}`
+        );
+      } catch (error: any) {
+        console.error("Failed to create EasyPost sub-account:", error);
+        console.log("EasyPost integration failed, continuing without EasyPost");
+        // Don't fail profile setup if EasyPost sub-account creation fails
+      }
+    }
 
     // Create or update shipping profile
     const [shippingProfile, created] = await ShippingProfile.findOrCreate({
@@ -61,18 +115,13 @@ export const setupProfile = async (
         company_name: profileData.company_name,
         country: profileData.country,
         currency: profileData.currency,
-        // street_address_line_1: verifiedAddress.street1,
-        // street_address_line_2: verifiedAddress.street2,
-        // city: verifiedAddress.city,
-        // state_province: verifiedAddress.state,
-        // postal_code: verifiedAddress.zip,
-        street_address_line_1: profileData.street_address_line_1,
-        street_address_line_2: profileData.street_address_line_2,
-        city: profileData.city,
-        state_province: profileData.state,
-        postal_code: profileData.postal_code,
+        street_address_line_1: verifiedAddress.street1,
+        street_address_line_2: verifiedAddress.street2,
+        city: verifiedAddress.city,
+        state_province: verifiedAddress.state,
+        postal_code: verifiedAddress.zip,
         is_profile_setup_complete: true,
-        // easypost_address_id: verifiedAddress.id,
+        easypost_address_id: verifiedAddress.id,
         easypost_verified_at: new Date(),
       },
     });
@@ -82,13 +131,13 @@ export const setupProfile = async (
         company_name: profileData.company_name,
         country: profileData.country,
         currency: profileData.currency,
-        // street_address_line_1: verifiedAddress.street1,
-        // street_address_line_2: verifiedAddress.street2,
-        // city: verifiedAddress.city,
-        // state_province: verifiedAddress.state,
-        // postal_code: verifiedAddress.zip,
+        street_address_line_1: verifiedAddress.street1,
+        street_address_line_2: verifiedAddress.street2,
+        city: verifiedAddress.city,
+        state_province: verifiedAddress.state,
+        postal_code: verifiedAddress.zip,
         is_profile_setup_complete: true,
-        // easypost_address_id: verifiedAddress.id,
+        easypost_address_id: verifiedAddress.id,
         easypost_verified_at: new Date(),
       });
     }
@@ -118,10 +167,10 @@ export const setupProfile = async (
           easypost_address_id: shippingProfile.easypost_address_id,
           easypost_verified_at: shippingProfile.easypost_verified_at,
         },
-        // verified_address: {
-        //   id: verifiedAddress.id,
-        //   verified: verifiedAddress.verified,
-        // },
+        verified_address: {
+          id: verifiedAddress.id,
+          verified: verifiedAddress.verified,
+        },
       },
       "Profile setup completed successfully"
     );

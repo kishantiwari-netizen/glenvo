@@ -8,12 +8,14 @@ interface PermissionAttributes {
   resource: string;
   action: string;
   is_active: boolean;
+  hash_id?: string;
+  deleted_at?: Date;
   created_at?: Date;
   updated_at?: Date;
 }
 
 interface PermissionCreationAttributes
-  extends Omit<PermissionAttributes, "id" | "created_at" | "updated_at"> {}
+  extends Omit<PermissionAttributes, "id" | "created_at" | "updated_at" | "hash_id" | "deleted_at"> {}
 
 class Permission
   extends Model<PermissionAttributes, PermissionCreationAttributes>
@@ -25,6 +27,8 @@ class Permission
   public resource!: string;
   public action!: string;
   public is_active!: boolean;
+  public hash_id?: string;
+  public deleted_at?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -66,6 +70,16 @@ Permission.init(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
+    hash_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -83,6 +97,7 @@ Permission.init(
     modelName: "Permission",
     timestamps: true,
     underscored: true,
+    paranoid: true, // Enable soft deletes
   }
 );
 

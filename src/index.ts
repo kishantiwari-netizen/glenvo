@@ -12,6 +12,7 @@ import {
   usersRoutes,
   profileSetupRoutes,
   shippingRoutes,
+  rolesRoutes,
   webhookRoutes,
   adminRoutes,
 } from "./modules";
@@ -62,6 +63,14 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions) as any;
 
+// Debug Swagger configuration
+console.log("🔍 Swagger APIs paths:", swaggerOptions.apis);
+console.log(
+  "📋 Swagger spec generated:",
+  Object.keys(swaggerSpec.paths || {}).length,
+  "paths found"
+);
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000"), // 15 minutes
@@ -95,6 +104,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/profile-setup", profileSetupRoutes);
 app.use("/api/shipping", shippingRoutes);
+app.use("/api/roles", rolesRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/admin", adminRoutes);
 

@@ -7,6 +7,9 @@ import {
   LoginDTO,
   UpdateProfileDTO,
   ChangePasswordDTO,
+  ForgotPasswordDTO,
+  ResetPasswordDTO,
+  VerifyResetTokenDTO,
 } from "./dto";
 
 const router = Router();
@@ -267,6 +270,139 @@ router.post(
   authenticateToken,
   validateDTO(ChangePasswordDTO),
   authController.changePassword
+);
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Request password reset
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *     responses:
+ *       200:
+ *         description: Password reset email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request - validation error
+ *       500:
+ *         description: Internal server error
+ */
+router.post(
+  "/forgot-password",
+  validateDTO(ForgotPasswordDTO),
+  authController.forgotPassword
+);
+
+/**
+ * @swagger
+ * /api/auth/verify-reset-token:
+ *   post:
+ *     summary: Verify password reset token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reset_token
+ *             properties:
+ *               reset_token:
+ *                 type: string
+ *                 description: Password reset token from email
+ *     responses:
+ *       200:
+ *         description: Reset token is valid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request - invalid or expired token
+ *       500:
+ *         description: Internal server error
+ */
+router.post(
+  "/verify-reset-token",
+  validateDTO(VerifyResetTokenDTO),
+  authController.verifyResetToken
+);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password using reset token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reset_token
+ *               - password
+ *               - confirm_password
+ *             properties:
+ *               reset_token:
+ *                 type: string
+ *                 description: Password reset token from email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: New password
+ *               confirm_password:
+ *                 type: string
+ *                 description: Confirm new password
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request - validation error or invalid token
+ *       500:
+ *         description: Internal server error
+ */
+router.post(
+  "/reset-password",
+  validateDTO(ResetPasswordDTO),
+  authController.resetPassword
 );
 
 export default router;

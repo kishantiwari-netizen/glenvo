@@ -24,6 +24,8 @@ interface UserAttributes {
   easypost_user_id?: string;
   easypost_api_key?: string;
   easypost_webhook_url?: string;
+  hash_id?: string;
+  deleted_at?: Date;
   created_at?: Date;
   updated_at?: Date;
   role?: any;
@@ -51,6 +53,8 @@ interface UserCreationAttributes {
   easypost_user_id?: string;
   easypost_api_key?: string;
   easypost_webhook_url?: string;
+  hash_id?: string;
+  deleted_at?: Date;
 }
 
 class User
@@ -78,6 +82,8 @@ class User
   public easypost_user_id?: string;
   public easypost_api_key?: string;
   public easypost_webhook_url?: string;
+  public hash_id?: string;
+  public deleted_at?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public role?: any; // For Sequelize associations
@@ -215,6 +221,16 @@ User.init(
       type: DataTypes.STRING(500),
       allowNull: true,
     },
+    hash_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -232,6 +248,7 @@ User.init(
     modelName: "User",
     timestamps: true,
     underscored: true,
+    paranoid: true, // Enable soft deletes
     hooks: {
       beforeCreate: async (user: User) => {
         await user.hashPassword();

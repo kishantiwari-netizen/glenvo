@@ -3,6 +3,8 @@ import { User, Role, ShippingProfile } from "../../models";
 import { generateToken } from "../../utils/jwt";
 import { ResponseHandler } from "../../utils/responseHandler";
 import EasyPostService from "../easypost/easypost.service";
+import EmailService from "../../utils/emailService";
+import crypto from "crypto";
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -344,5 +346,133 @@ export const changePassword = async (
   } catch (error) {
     console.error("Change password error:", error);
     ResponseHandler.error(res, "Failed to change password");
+  }
+};
+
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ where: { email, is_active: true } });
+    if (!user) {
+      ResponseHandler.success(res, null, "Password reset link has been sent");
+      return;
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Update user with reset token
+    await user.update({
+      password_reset_token: resetToken,
+      password_reset_expires: resetTokenExpiry,
+    });
+
+    // Send email
+    try {
+      const emailService = new EmailService();
+      await emailService.sendPasswordResetEmail(
+        email,
+        resetToken,
+        user.first_name
+      );
+
+      ResponseHandler.success(
+        res,
+        null,
+        "Password reset link has been sent to your email"
+      );
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+
+      // Clear the reset token if email fails
+      await user.update({
+        password_reset_token: null as any,
+        password_reset_expires: null as any,
+      });
+
+      ResponseHandler.error(res, "Failed to send password reset email");
+    }
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    ResponseHandler.error(res, "Failed to process password reset request");
+  }
+};
+
+export const verifyResetToken = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { reset_token } = req.body;
+
+    // Find user with valid reset token
+    const user = await User.findOne({
+      where: {
+        password_reset_token: reset_token,
+        password_reset_expires: {
+          [require("sequelize").Op.gt]: new Date(),
+        },
+        is_active: true,
+      },
+    });
+
+    if (!user) {
+      ResponseHandler.badRequest(res, "Invalid or expired reset token");
+      return;
+    }
+
+    ResponseHandler.success(res, null, "Reset token is valid");
+  } catch (error) {
+    console.error("Verify reset token error:", error);
+    ResponseHandler.error(res, "Failed to verify reset token");
+  }
+};
+
+export const resetPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { reset_token, password, confirm_password } = req.body;
+
+    // Validate password confirmation
+    if (password !== confirm_password) {
+      ResponseHandler.badRequest(res, "Passwords do not match");
+      return;
+    }
+
+    // Find user with valid reset token
+    const user = await User.findOne({
+      where: {
+        password_reset_token: reset_token,
+        password_reset_expires: {
+          [require("sequelize").Op.gt]: new Date(),
+        },
+        is_active: true,
+      },
+    });
+
+    if (!user) {
+      ResponseHandler.badRequest(res, "Invalid or expired reset token");
+      return;
+    }
+
+    // Update password and clear reset token
+    await user.update({
+      password: password,
+      password_reset_token: null as any,
+      password_reset_expires: null as any,
+    });
+
+    ResponseHandler.success(res, null, "Password has been reset successfully");
+  } catch (error) {
+    console.error("Reset password error:", error);
+    ResponseHandler.error(res, "Failed to reset password");
   }
 };

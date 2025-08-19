@@ -18,6 +18,8 @@ interface CarrierAttributes {
   currency: string;
   estimated_delivery_days: number;
   service_description?: string;
+  hash_id?: string;
+  deleted_at?: Date;
   created_at?: Date;
   updated_at?: Date;
   shipments?: any[];
@@ -39,6 +41,8 @@ interface CarrierCreationAttributes {
   currency?: string;
   estimated_delivery_days: number;
   service_description?: string;
+  hash_id?: string;
+  deleted_at?: Date;
 }
 
 class Carrier
@@ -61,6 +65,8 @@ class Carrier
   public currency!: string;
   public estimated_delivery_days!: number;
   public service_description?: string;
+  public hash_id?: string;
+  public deleted_at?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public shipments?: any[];
@@ -148,6 +154,16 @@ Carrier.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    hash_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -165,6 +181,7 @@ Carrier.init(
     modelName: "Carrier",
     timestamps: true,
     underscored: true,
+    paranoid: true, // Enable soft deletes
   }
 );
 

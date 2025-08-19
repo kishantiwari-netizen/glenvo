@@ -18,6 +18,8 @@ interface ShippingAddressAttributes {
   special_instructions?: string;
   is_default: boolean;
   address_type: "sender" | "receiver";
+  hash_id?: string;
+  deleted_at?: Date;
   created_at?: Date;
   updated_at?: Date;
   user?: any;
@@ -39,6 +41,8 @@ interface ShippingAddressCreationAttributes {
   special_instructions?: string;
   is_default?: boolean;
   address_type: "sender" | "receiver";
+  hash_id?: string;
+  deleted_at?: Date;
 }
 
 class ShippingAddress
@@ -61,6 +65,8 @@ class ShippingAddress
   public special_instructions?: string;
   public is_default!: boolean;
   public address_type!: "sender" | "receiver";
+  public hash_id?: string;
+  public deleted_at?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public user?: any;
@@ -168,6 +174,16 @@ ShippingAddress.init(
       type: DataTypes.ENUM("sender", "receiver"),
       allowNull: false,
     },
+    hash_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -185,6 +201,7 @@ ShippingAddress.init(
     modelName: "ShippingAddress",
     timestamps: true,
     underscored: true,
+    paranoid: true, // Enable soft deletes
   }
 );
 

@@ -1,17 +1,21 @@
 import { Model, DataTypes, Sequelize } from "sequelize";
 import { sequelize } from "./index";
+import User from "./User";
 
 interface RoleAttributes {
   id?: number;
   name: string;
   description?: string;
   is_active: boolean;
+  hash_id?: string;
+  deleted_at?: Date;
   created_at?: Date;
   updated_at?: Date;
+  users?: User[];
 }
 
 interface RoleCreationAttributes
-  extends Omit<RoleAttributes, "id" | "created_at" | "updated_at"> {}
+  extends Omit<RoleAttributes, "id" | "created_at" | "updated_at" | "users" | "hash_id" | "deleted_at"> {}
 
 class Role
   extends Model<RoleAttributes, RoleCreationAttributes>
@@ -21,8 +25,11 @@ class Role
   public name!: string;
   public description?: string;
   public is_active!: boolean;
+  public hash_id?: string;
+  public deleted_at?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
+  public users?: User[];
 }
 
 Role.init(
@@ -48,6 +55,16 @@ Role.init(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
+    hash_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -65,6 +82,7 @@ Role.init(
     modelName: "Role",
     timestamps: true,
     underscored: true,
+    paranoid: true, // Enable soft deletes
   }
 );
 

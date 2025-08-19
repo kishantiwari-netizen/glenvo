@@ -44,6 +44,8 @@ interface ShipmentAttributes {
   tracking_code?: string;
   postage_label?: string;
   tracker?: string;
+  hash_id?: string;
+  deleted_at?: Date;
   created_at?: Date;
   updated_at?: Date;
   user?: any;
@@ -94,6 +96,8 @@ interface ShipmentCreationAttributes {
   tracking_code?: string;
   postage_label?: string;
   tracker?: string;
+  hash_id?: string;
+  deleted_at?: Date;
 }
 
 class Shipment
@@ -142,6 +146,8 @@ class Shipment
   public tracking_code?: string;
   public postage_label?: string;
   public tracker?: string;
+  public hash_id?: string;
+  public deleted_at?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public user?: any;
@@ -323,6 +329,16 @@ Shipment.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    hash_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -340,6 +356,7 @@ Shipment.init(
     modelName: "Shipment",
     timestamps: true,
     underscored: true,
+    paranoid: true, // Enable soft deletes
   }
 );
 

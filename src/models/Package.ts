@@ -11,6 +11,8 @@ interface PackageAttributes {
   description?: string;
   declared_value: number;
   package_number: number;
+  hash_id?: string;
+  deleted_at?: Date;
   created_at?: Date;
   updated_at?: Date;
   shipment?: any;
@@ -25,6 +27,8 @@ interface PackageCreationAttributes {
   description?: string;
   declared_value: number;
   package_number: number;
+  hash_id?: string;
+  deleted_at?: Date;
 }
 
 class Package
@@ -40,6 +44,8 @@ class Package
   public description?: string;
   public declared_value!: number;
   public package_number!: number;
+  public hash_id?: string;
+  public deleted_at?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   public shipment?: any;
@@ -127,6 +133,16 @@ Package.init(
         min: 1,
       },
     },
+    hash_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -144,6 +160,7 @@ Package.init(
     modelName: "Package",
     timestamps: true,
     underscored: true,
+    paranoid: true, // Enable soft deletes
   }
 );
 

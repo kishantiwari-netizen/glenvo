@@ -16,12 +16,14 @@ interface ShippingProfileAttributes {
   is_active?: boolean;
   easypost_address_id?: string;
   easypost_verified_at?: Date;
+  hash_id?: string;
+  deleted_at?: Date;
   created_at?: Date;
   updated_at?: Date;
 }
 
 interface ShippingProfileCreationAttributes
-  extends Omit<ShippingProfileAttributes, "id" | "created_at" | "updated_at"> {}
+  extends Omit<ShippingProfileAttributes, "id" | "created_at" | "updated_at" | "hash_id" | "deleted_at"> {}
 
 class ShippingProfile
   extends Model<ShippingProfileAttributes, ShippingProfileCreationAttributes>
@@ -41,6 +43,8 @@ class ShippingProfile
   public is_active?: boolean;
   public easypost_address_id?: string;
   public easypost_verified_at?: Date;
+  public hash_id?: string;
+  public deleted_at?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -113,6 +117,16 @@ ShippingProfile.init(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    hash_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -130,6 +144,7 @@ ShippingProfile.init(
     modelName: "ShippingProfile",
     timestamps: true,
     underscored: true,
+    paranoid: true, // Enable soft deletes
     indexes: [
       {
         unique: true,

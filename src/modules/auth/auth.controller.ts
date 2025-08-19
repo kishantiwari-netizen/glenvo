@@ -356,18 +356,15 @@ export const forgotPassword = async (
   try {
     const { email } = req.body;
 
-    // Find user by email
     const user = await User.findOne({ where: { email, is_active: true } });
     if (!user) {
       ResponseHandler.success(res, null, "Password reset link has been sent");
       return;
     }
 
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    // Update user with reset token
     await user.update({
       password_reset_token: resetToken,
       password_reset_expires: resetTokenExpiry,

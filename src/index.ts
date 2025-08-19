@@ -15,6 +15,7 @@ import {
   rolesRoutes,
   webhookRoutes,
   adminRoutes,
+  locationRoutes,
 } from "./modules";
 import { ResponseHandler } from "./utils/responseHandler";
 
@@ -107,6 +108,7 @@ app.use("/api/shipping", shippingRoutes);
 app.use("/api/roles", rolesRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/locations", locationRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

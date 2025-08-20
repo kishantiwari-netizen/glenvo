@@ -16,6 +16,9 @@ import {
   webhookRoutes,
   adminRoutes,
   locationRoutes,
+  accountSettingsRoutes,
+  paymentRoutes,
+  paymentWebhookRoutes,
 } from "./modules";
 import { ResponseHandler } from "./utils/responseHandler";
 
@@ -109,6 +112,9 @@ app.use("/api/roles", rolesRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/locations", locationRoutes);
+app.use("/api/account-settings", accountSettingsRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/payments/webhooks", paymentWebhookRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {
@@ -145,8 +151,11 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log("✅ Database connection established successfully.");
 
-    // Sync database (in development)
-    if (process.env.NODE_ENV === "development") {
+    // Sync database (in development) - only if needed
+    if (
+      process.env.NODE_ENV === "development" &&
+      process.env.SYNC_DB === "true"
+    ) {
       await sequelize.sync({ alter: true });
       console.log("✅ Database synchronized.");
     }

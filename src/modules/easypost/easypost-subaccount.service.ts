@@ -109,7 +109,7 @@ class EasyPostSubAccountService {
       }
 
       const webhookUrl = `${
-        process.env.API_BASE_URL || "http://localhost:3000"
+        process.env.API_BASE_URL || `http://localhost:${process.env.PORT}`
       }/api/webhooks/easypost`;
 
       const subAccount = await this.easyPostService.createSubAccount({

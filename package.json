@@ -40,6 +40,7 @@
     "pg-hstore": "^2.3.4",
     "reflect-metadata": "^0.2.2",
     "sequelize": "^6.35.0",
+    "stripe": "^14.25.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0"
   },
@@ -50,6 +51,7 @@
     "@types/joi": "^17.2.3",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.10.0",
+    "@types/stripe": "^8.0.417",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
     "nodemon": "^3.0.2",

@@ -1,4 +1,4 @@
-interface Country {
+export interface Country {
   code: string;
   name: string;
   currency: string;
@@ -6,14 +6,14 @@ interface Country {
   states: State[];
 }
 
-interface State {
+export interface State {
   code: string;
   name: string;
   countryCode: string;
   cities: City[];
 }
 
-interface City {
+export interface City {
   name: string;
   stateCode: string;
   countryCode: string;

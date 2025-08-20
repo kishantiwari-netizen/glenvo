@@ -29,6 +29,8 @@ import Shipment from "./Shipment";
 import ShippingAddress from "./ShippingAddress";
 import Package from "./Package";
 import Carrier from "./Carrier";
+import Payment from "./Payment";
+import Subscription from "./Subscription";
 
 // Define associations
 // User has one role (single role per user)
@@ -123,6 +125,29 @@ Carrier.hasMany(Shipment, {
   as: "shipments",
 });
 
+// Payment associations
+// User has many payments
+User.hasMany(Payment, {
+  foreignKey: "user_id",
+  as: "payments",
+});
+
+Payment.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+// User has many subscriptions
+User.hasMany(Subscription, {
+  foreignKey: "user_id",
+  as: "subscriptions",
+});
+
+Subscription.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
 export {
   sequelize,
   User,
@@ -135,6 +160,8 @@ export {
   ShippingAddress,
   Package,
   Carrier,
+  Payment,
+  Subscription,
 };
 
 export default sequelize;

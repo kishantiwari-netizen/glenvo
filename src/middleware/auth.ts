@@ -36,7 +36,7 @@ export const authenticateToken = async (
       token,
       process.env.JWT_SECRET || "your_jwt_secret_key_here"
     ) as JwtPayload;
-
+    console.log("--------------decode--------------------------", { decoded });
     // Get user with role and permissions
     const user = await User.findByPk(decoded.user_id, {
       include: [
@@ -62,10 +62,11 @@ export const authenticateToken = async (
 
     // Extract roles and permissions (filter for active ones)
     const userRoles = user.role?.is_active ? [user.role.name] : [];
-    const userPermissions =
-      user.role?.is_active
-        ? user.role.permissions?.filter((permission: any) => permission.is_active)?.map((permission: any) => permission.name) || []
-        : [];
+    const userPermissions = user.role?.is_active
+      ? user.role.permissions
+          ?.filter((permission: any) => permission.is_active)
+          ?.map((permission: any) => permission.name) || []
+      : [];
 
     req.user = user;
     req.userRoles = userRoles;

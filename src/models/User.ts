@@ -12,6 +12,7 @@ interface UserAttributes {
   date_of_birth?: Date;
   profile_picture?: string;
   account_type: "individual" | "business";
+  business_type?: string;
   agreement_acceptance: boolean;
   marketing_opt_in: boolean;
   social_media_acceptance: boolean;
@@ -24,6 +25,7 @@ interface UserAttributes {
   easypost_user_id?: string;
   easypost_api_key?: string;
   easypost_webhook_url?: string;
+  stripe_customer_id?: string;
   hash_id?: string;
   deleted_at?: Date;
   created_at?: Date;
@@ -41,6 +43,7 @@ interface UserCreationAttributes {
   date_of_birth?: Date;
   profile_picture?: string;
   account_type?: "individual" | "business";
+  business_type?: string;
   agreement_acceptance?: boolean;
   marketing_opt_in?: boolean;
   social_media_acceptance?: boolean;
@@ -53,6 +56,7 @@ interface UserCreationAttributes {
   easypost_user_id?: string;
   easypost_api_key?: string;
   easypost_webhook_url?: string;
+  stripe_customer_id?: string;
   hash_id?: string;
   deleted_at?: Date;
 }
@@ -70,6 +74,7 @@ class User
   public date_of_birth?: Date;
   public profile_picture?: string;
   public account_type!: "individual" | "business";
+  public business_type?: string;
   public agreement_acceptance!: boolean;
   public marketing_opt_in!: boolean;
   public social_media_acceptance!: boolean;
@@ -82,6 +87,7 @@ class User
   public easypost_user_id?: string;
   public easypost_api_key?: string;
   public easypost_webhook_url?: string;
+  public stripe_customer_id?: string;
   public hash_id?: string;
   public deleted_at?: Date;
   public readonly created_at!: Date;
@@ -180,6 +186,17 @@ User.init(
         isIn: [["individual", "business"]],
       },
     },
+    business_type: {
+      type: DataTypes.ENUM(
+        "eCommerce Retailer",
+        "Wholesale Distributor",
+        "Manufacturer",
+        "Dropshipper",
+        "Marketplace Seller",
+        "Other"
+      ),
+      allowNull: true,
+    },
     agreement_acceptance: {
       type: DataTypes.BOOLEAN,
       allowNull: true,
@@ -219,6 +236,10 @@ User.init(
     },
     easypost_webhook_url: {
       type: DataTypes.STRING(500),
+      allowNull: true,
+    },
+    stripe_customer_id: {
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     hash_id: {

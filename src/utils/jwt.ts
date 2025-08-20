@@ -7,7 +7,7 @@ interface TokenPayload {
   roles: string[];
 }
 
-export const generateToken = (user: User, roles: string[]): string => {
+export const generateToken = (user: User, roles: any): string => {
   const payload: TokenPayload = {
     user_id: user.id,
     email: user.email,

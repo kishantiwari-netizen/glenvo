@@ -46,7 +46,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     try {
       const easyPostService = new EasyPostService();
       const webhookUrl = `${
-        process.env.API_BASE_URL || "http://localhost:3000"
+        process.env.API_BASE_URL || `http://localhost:${process.env.PORT}`
       }/api/webhooks/easypost`;
 
       const subAccount = await easyPostService.createSubAccount({
@@ -169,17 +169,19 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Check password
     const isValidPassword = await user.comparePassword(password);
-    console.log({ isValidPassword });
     if (!isValidPassword) {
       ResponseHandler.unauthorized(res, "Invalid email or password");
       return;
     }
 
     // Get user role
-    const roles = user.role ? [user.role.name] : [];
+    const roleData = {
+      id: user?.role.dataValues.hash_id,
+      name: user?.role.dataValues.name,
+    };
 
     // Generate token
-    const token = generateToken(user, roles);
+    const token = generateToken(user, roleData);
 
     // Update last login
     await user.update({ last_login_at: new Date() });
@@ -200,7 +202,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           last_login_at: user.last_login_at,
           is_profile_setup_complete:
             user.shipping_profile?.is_profile_setup_complete,
-          roles: roles,
+          roles: roleData,
         },
         token,
       },
